@@ -1,0 +1,20 @@
+[package]
+name = "boxext"
+version = "0.1.0"
+authors = ["Mike Hommey <mh@glandium.org>"]
+license = "Apache-2.0/MIT"
+description = "Extensions to the `Box` type"
+repository = "https://github.com/glandium/boxext"
+keywords = ["box", "allocator"]
+
+[features]
+default = ["std"]
+std = []
+unstable-rust = []
+
+[dependencies]
+static_assertions = "0.2"
+allocator_api = { version = "0.2", optional = true }
+
+[dev-dependencies]
+boxext_derive = { path = "boxext_derive", version = "0.1" }

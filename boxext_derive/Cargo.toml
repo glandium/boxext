@@ -1,0 +1,15 @@
+[package]
+name = "boxext_derive"
+version = "0.1.0"
+authors = ["Mike Hommey <mh@glandium.org>"]
+license = "Apache-2.0/MIT"
+description = "Custom Derive for the `boxext::Zero` type"
+repository = "https://github.com/glandium/boxext"
+keywords = ["box", "allocator", "derive"]
+
+[dependencies]
+syn = ">= 0.12, <0.14"
+quote = ">=0.4, <0.6"
+
+[lib]
+proc-macro = true
