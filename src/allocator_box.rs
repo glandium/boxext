@@ -40,12 +40,21 @@ pub trait BoxInExt<A: Alloc> {
     ///    }
     /// }
     ///
+    /// impl Default for Foo {
+    ///    fn default() -> Self {
+    ///        Foo::new(0, 1)
+    ///    }
+    /// }
+    ///
     /// fn main() {
     ///     // equivalent to `Box::new_in(Foo(1, 2), MyHeap)`
     ///     let buf = Box::new_in_with(|| Foo(1, 2), MyHeap);
     ///
     ///     // equivalent to `Box::new_in(Foo::new(2, 3), MyHeap)`
     ///     let buf = Box::new_in_with(|| Foo::new(2, 3), MyHeap);
+    ///
+    ///     // equivalent to `Box::<Foo>::new(Default::default())`
+    ///     let buf = Box::<Foo, _>::new_in_with(Default::default, MyHeap);
     /// }
     /// ```
     fn new_in_with<F: FnOnce() -> Self::Inner>(f: F, a: A) -> Self;

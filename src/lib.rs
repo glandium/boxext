@@ -108,6 +108,12 @@ pub trait BoxExt {
     ///    }
     /// }
     ///
+    /// impl Default for Foo {
+    ///     fn default() -> Self {
+    ///         Foo::new(0, 1)
+    ///     }
+    /// }
+    ///
     /// fn main() {
     ///     // equivalent to `Box::new(Foo(1, 2))`
     /// #   #[cfg(feature = "std")]
@@ -116,6 +122,10 @@ pub trait BoxExt {
     ///     // equivalent to `Box::new(Foo::new(2, 3))`
     /// #   #[cfg(feature = "std")]
     ///     let buf = Box::new_with(|| Foo::new(2, 3));
+    ///
+    ///     // equivalent to `Box::<Foo>::new(Default::default())`
+    /// #   #[cfg(feature = "std")]
+    ///     let buf = Box::<Foo>::new_with(Default::default);
     /// }
     /// ```
     fn new_with<F: FnOnce() -> Self::Inner>(f: F) -> Self;
