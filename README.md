@@ -37,6 +37,41 @@ using [`calloc`]/[`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]/
 [`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366597(v=vs.85).aspx#HEAP_ZERO_MEMORY
 [`mallocx(..., MALLOCX_ZERO)`]: http://jemalloc.net/jemalloc.3.html#MALLOCX_ZERO
 
+### Examples
+
+```rust
+extern crate boxext;
+use boxext::BoxExt;
+
+struct Foo(usize, usize);
+
+impl Foo {
+    fn new(a: usize, b: usize) -> Self {
+        Foo(a, b)
+   }
+}
+
+impl Default for Foo {
+    fn default() -> Self {
+        Foo::new(0, 1)
+    }
+}
+
+fn main() {
+    // equivalent to `Box::new(Foo(1, 2))`
+    let buf = Box::new_with(|| Foo(1, 2));
+
+    // equivalent to `Box::new(Foo::new(2, 3))`
+    let buf = Box::new_with(|| Foo::new(2, 3));
+
+    // equivalent to `Box::new(Foo::default())`
+    let buf = Box::new_with(Foo::default);
+
+    // equivalent to `Box::new([0usize; 64])`
+    let buf: Box<[usize; 64]> = Box::new_zeroed();
+}
+```
+
 ### Features
 
 * `std` (enabled by default): Uses libstd. Can be disabled to allow use

@@ -53,8 +53,8 @@ pub trait BoxInExt<A: Alloc> {
     ///     // equivalent to `Box::new_in(Foo::new(2, 3), MyHeap)`
     ///     let buf = Box::new_in_with(|| Foo::new(2, 3), MyHeap);
     ///
-    ///     // equivalent to `Box::<Foo>::new(Default::default())`
-    ///     let buf = Box::<Foo, _>::new_in_with(Default::default, MyHeap);
+    ///     // equivalent to `Box::new_in(Foo::default(), MyHeap)`
+    ///     let buf = Box::new_in_with(Foo::default, MyHeap);
     /// }
     /// ```
     fn new_in_with<F: FnOnce() -> Self::Inner>(f: F, a: A) -> Self;
