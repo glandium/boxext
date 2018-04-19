@@ -5,6 +5,7 @@ authors = ["Mike Hommey <mh@glandium.org>"]
 license = "Apache-2.0/MIT"
 description = "Extensions to the `Box` type"
 repository = "https://github.com/glandium/boxext"
+readme = "README.md"
 keywords = ["box", "allocator"]
 
 [features]
