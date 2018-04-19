@@ -13,9 +13,9 @@
 //! This crate provides extra initializer methods for `Box`, working around the
 //! current (as of writing) shortcomings from `Box::new`:
 //!
-//! * Since Rust 1.12, constructs such as `Box::new(SomeType { data })` or
-//! `Box::new([0; 4096])` first create a temporary object on the stack before
-//! copying it into the newly allocated space (e.g. [issue #50047]).
+//! * Since Rust 1.12, constructs such as `Box::new([0; 4096])` first create a
+//! temporary object on the stack before copying it into the newly allocated
+//! space (e.g. [issue #50047]).
 //!
 //! * Constructs such as `Box::new(some_function_call())` first get the result
 //! from the function call on the stack before copying it into the newly
