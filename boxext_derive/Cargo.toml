@@ -1,6 +1,6 @@
 [package]
 name = "boxext_derive"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Mike Hommey <mh@glandium.org>"]
 license = "Apache-2.0/MIT"
 description = "Custom Derive for the `boxext::Zero` trait"
