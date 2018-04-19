@@ -31,8 +31,8 @@ will be placed in the Box.
 using [`calloc`]/[`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]/
 [`mallocx(..., MALLOCX_ZERO)`] under the hood.
 
-[`new_with`]: trait.BoxExt.html#tymethod.new_with
-[`new_zeroed`]: trait.BoxExt.html#tymethod::new_zeroed
+[`new_with`]: https://docs.rs/boxext/0.1.0/boxext/trait.BoxExt.html#tymethod.new_with
+[`new_zeroed`]: https://docs.rs/boxext/0.1.0/boxext/trait.BoxExt.html#tymethod.new_zeroed
 [`calloc`]: http://pubs.opengroup.org/onlinepubs/009695399/functions/calloc.html
 [`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366597(v=vs.85).aspx#HEAP_ZERO_MEMORY
 [`mallocx(..., MALLOCX_ZERO)`]: http://jemalloc.net/jemalloc.3.html#MALLOCX_ZERO
