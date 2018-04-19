@@ -282,6 +282,7 @@ impl<T> BoxExt for Box<T> {
 /// use boxext::BoxExt;
 ///
 /// #[derive(Zero)]
+/// //          ^ the trait `boxext::Zero` is not implemented for `Bar`
 /// struct Foo(Bar);
 ///
 /// struct Bar;
