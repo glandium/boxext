@@ -27,21 +27,15 @@ pub fn derive_zero(input: TokenStream) -> TokenStream {
     let mut types = vec![];
 
     match input.data {
-        Data::Struct(ref data) => {
-            match data.fields {
-                Fields::Named(ref fields) => {
-                    for f in &fields.named {
-                        types.push(&f.ty);
-                    }
-                }
-                Fields::Unnamed(ref fields) => {
-                    for f in &fields.unnamed {
-                        types.push(&f.ty);
-                    }
-                }
-                Fields::Unit => {}
-            }
-        }
+        Data::Struct(ref data) => match data.fields {
+            Fields::Named(ref fields) => for f in &fields.named {
+                types.push(&f.ty);
+            },
+            Fields::Unnamed(ref fields) => for f in &fields.unnamed {
+                types.push(&f.ty);
+            },
+            Fields::Unit => {}
+        },
         _ => panic!("Can only derive(Zero) for structs"),
     }
 
