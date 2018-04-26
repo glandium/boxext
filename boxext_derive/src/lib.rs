@@ -8,13 +8,14 @@
 
 extern crate proc_macro;
 
+#[macro_use]
 extern crate syn;
 
 #[macro_use]
 extern crate quote;
 
 use proc_macro::TokenStream;
-use syn::{Data, DeriveInput, Fields};
+use syn::{Data, DeriveInput, Fields, WhereClause, WherePredicate};
 
 #[proc_macro_derive(Zero)]
 pub fn derive_zero(input: TokenStream) -> TokenStream {
@@ -39,22 +40,17 @@ pub fn derive_zero(input: TokenStream) -> TokenStream {
         _ => panic!("Can only derive(Zero) for structs"),
     }
 
-    let predicates = if let Some(ref w) = where_clause {
-        w.predicates.iter().collect()
-    } else {
-        vec![]
-    };
+    let mut where_clause = where_clause.cloned().unwrap_or_else(|| WhereClause {
+        where_token: Default::default(),
+        predicates: Default::default(),
+    });
+    for t in types {
+        let p: WherePredicate = parse_quote! { #t: ::boxext::Zero };
+        where_clause.predicates.push(p);
+    }
 
-    let expanded = if predicates.is_empty() && types.is_empty() {
-        quote! {
-            unsafe impl #impl_generics ::boxext::Zero for #name #ty_generics {}
-        }
-    } else {
-        quote! {
-            unsafe impl #impl_generics ::boxext::Zero for #name #ty_generics
-            where #(#predicates,)* #(#types: ::boxext::Zero,)*
-            {}
-        }
+    let expanded = quote! {
+        unsafe impl #impl_generics ::boxext::Zero for #name #ty_generics #where_clause {}
     };
 
     expanded.into()
