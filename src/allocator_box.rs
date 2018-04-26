@@ -6,8 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use core::ptr;
 use allocator_api::{Alloc, Box, RawVec};
+use core::ptr;
 use {BoxExt, Zero};
 
 /// Extensions to the `allocator_api::Box` type
