@@ -12,6 +12,7 @@ keywords = ["box", "allocator"]
 default = ["std"]
 std = []
 unstable-rust = []
+fallible = []
 
 [dependencies]
 static_assertions = "0.2"

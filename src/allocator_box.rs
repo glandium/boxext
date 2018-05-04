@@ -96,18 +96,133 @@ pub trait BoxInExt<A: Alloc> {
     where
         Self: Sized,
         Self::Inner: Zero;
+
+    /// Fallible [`Box::new_in`]
+    ///
+    /// [`Box::new_in`]: https://docs.rs/allocator_api/*/allocator_api/boxed/struct.Box.html#method.new_in
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate allocator_api;
+    /// extern crate boxext;
+    /// use allocator_api::Box;
+    /// use boxext::BoxInExt;
+    /// # include!("dummy.rs");
+    ///
+    /// fn main() {
+    ///     let five = Box::try_new_in(5, MyHeap).unwrap();
+    ///     assert_eq!(*five, 5);
+    /// }
+    /// ```
+    #[cfg(feature = "fallible")]
+    fn try_new_in(x: Self::Inner, a: A) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// Fallible [`Box::new_in_with`]
+    ///
+    /// [`Box::new_in_with`]: #method.new_in_with
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate allocator_api;
+    /// extern crate boxext;
+    /// use allocator_api::Box;
+    /// use boxext::BoxInExt;
+    /// # include!("dummy.rs");
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// struct Foo(usize, usize);
+    ///
+    /// impl Foo {
+    ///     fn new(a: usize, b: usize) -> Self {
+    ///         Foo(a, b)
+    ///    }
+    /// }
+    ///
+    /// impl Default for Foo {
+    ///    fn default() -> Self {
+    ///        Foo::new(0, 1)
+    ///    }
+    /// }
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new_in(Foo(1, 2), MyHeap)`
+    ///     let buf = Box::try_new_in_with(|| Foo(1, 2), MyHeap).unwrap();
+    ///     assert_eq!(*buf, Foo(1, 2));
+    ///
+    ///     // equivalent to `Box::try_new_in(Foo::new(2, 3), MyHeap)`
+    ///     let buf = Box::try_new_in_with(|| Foo::new(2, 3), MyHeap).unwrap();
+    ///     assert_eq!(*buf, Foo(2, 3));
+    ///
+    ///     // equivalent to `Box::new_in(Foo::default(), MyHeap)`
+    ///     let buf = Box::try_new_in_with(Foo::default, MyHeap).unwrap();
+    ///     assert_eq!(*buf, Foo::default());
+    /// }
+    /// ```
+    #[cfg(feature = "fallible")]
+    fn try_new_in_with<F: FnOnce() -> Self::Inner>(f: F, a: A) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// Fallible [`Box::new_zeroed`]
+    ///
+    /// [`Box::new_zeroed`]: #method.new_zeroed
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// extern crate allocator_api;
+    /// extern crate boxext;
+    /// use allocator_api::Box;
+    /// use boxext::BoxInExt;
+    /// # include!("dummy.rs");
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new_in([0usize; 32], MyHeap)`
+    ///     let buf: Box<[usize; 32], _> = Box::try_new_zeroed_in(MyHeap).unwrap();
+    ///     assert_eq!(*buf, [0usize; 32]);
+    /// }
+    /// ```
+    ///
+    /// # Safety
+    ///
+    /// This method is only assumed safe for `Self::Inner` types implementing
+    /// the [`Zero`] trait, and not available otherwise. See the definition
+    /// of that trait.
+    ///
+    /// [`Zero`]: trait.Zero.html
+    #[cfg(feature = "fallible")]
+    fn try_new_zeroed_in(a: A) -> Option<Self>
+    where
+        Self: Sized;
 }
 
-unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Box<T, A> {
+// Creates a new box in the given allocator, for the given type.
+// If the memory could be allocated, returns Ok(box). Otherwise, returns Err(a),
+// allowing the caller to access the allocator again (the function takes ownership
+// of it).
+unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Result<Box<T, A>, A> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
-        NonNull::<T>::dangling()
+        Ok(NonNull::<T>::dangling())
     } else if zeroed {
-        a.alloc_zeroed(layout).unwrap_or_else(|_| a.oom()).cast_()
+        a.alloc_zeroed(layout).map(NonNull::cast_)
     } else {
-        a.alloc(layout).unwrap_or_else(|_| a.oom()).cast_()
+        a.alloc(layout).map(NonNull::cast_)
     };
-    Box::from_raw_in(raw.as_ptr(), a)
+    match raw {
+        Ok(raw) => Ok(Box::from_raw_in(raw.as_ptr(), a)),
+        Err(_) => Err(a),
+    }
 }
 
 impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
@@ -116,7 +231,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     #[inline]
     fn new_in_with<F: FnOnce() -> T>(f: F, a: A) -> Self {
         unsafe {
-            let mut b = new_box_in::<T, A>(a, false);
+            let mut b = new_box_in::<T, A>(a, false).unwrap_or_else(|mut a| a.oom());
             ptr::write(b.as_mut(), f());
             b
         }
@@ -127,7 +242,36 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     where
         T: Zero,
     {
-        unsafe { new_box_in::<T, A>(a, true) }
+        unsafe { new_box_in::<T, A>(a, true).unwrap_or_else(|mut a| a.oom()) }
+    }
+
+    #[cfg(feature = "fallible")]
+    #[inline]
+    fn try_new_in(x: T, mut a: A) -> Option<Self> {
+        unsafe {
+            let raw = a.alloc(Layout::new::<T>()).ok()?.cast_().as_ptr();
+            ptr::write(raw, x);
+            Some(Box::from_raw_in(raw, a))
+        }
+    }
+
+    #[cfg(feature = "fallible")]
+    #[inline]
+    fn try_new_in_with<F: FnOnce() -> Self::Inner>(f: F, mut a: A) -> Option<Self> {
+        unsafe {
+            let raw = a.alloc(Layout::new::<T>()).ok()?.cast_().as_ptr();
+            ptr::write(raw, f());
+            Some(Box::from_raw_in(raw, a))
+        }
+    }
+
+    #[cfg(feature = "fallible")]
+    #[inline]
+    fn try_new_zeroed_in(mut a: A) -> Option<Self> {
+        unsafe {
+            let raw = a.alloc_zeroed(Layout::new::<T>()).ok()?.cast_();
+            Some(Box::from_raw_in(raw.as_ptr(), a))
+        }
     }
 }
 
@@ -220,5 +364,136 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
         T: Zero,
     {
         BoxInExt::new_zeroed_in(Default::default())
+    }
+
+    /// Fallible [`Box::new`]
+    ///
+    /// [`Box::new`]: https://docs.rs/allocator_api/*/allocator_api/boxed/struct.Box.html#method.new
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate allocator_api;
+    /// extern crate boxext;
+    /// use allocator_api::Box;
+    /// use boxext::BoxExt;
+    /// # include!("dummy.rs");
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new_in(5, MyHeap)`
+    ///     let five: Box<_, MyHeap> = Box::try_new(5).unwrap();
+    ///     assert_eq!(*five, 5);
+    /// }
+    /// ```
+    ///
+    /// This is a convenience wrapper around [`allocator_api::Box::try_new_in`]
+    /// when the allocator implements `Default`.
+    ///
+    /// [`allocator_api::Box::try_new_in`]: trait.BoxInExt.html#tymethod.try_new_in
+    #[cfg(feature = "fallible")]
+    #[inline]
+    fn try_new(x: T) -> Option<Self> {
+        BoxInExt::try_new_in(x, Default::default())
+    }
+
+    /// Fallible [`Box::new_with`]
+    ///
+    /// [`Box::new_with`]: #method.new_with
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate allocator_api;
+    /// extern crate boxext;
+    /// use allocator_api::Box;
+    /// use boxext::BoxExt;
+    /// # include!("dummy.rs");
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// struct Foo(usize, usize);
+    ///
+    /// impl Foo {
+    ///     fn new(a: usize, b: usize) -> Self {
+    ///         Foo(a, b)
+    ///    }
+    /// }
+    ///
+    /// impl Default for Foo {
+    ///     fn default() -> Self {
+    ///         Foo::new(0, 1)
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new_in(Foo(1, 2))`
+    ///     let buf: Box<_, MyHeap> = Box::try_new_with(|| Foo(1, 2)).unwrap();
+    ///     assert_eq!(*buf, Foo(1, 2));
+    ///
+    ///     // equivalent to `Box::try_new_in(Foo::new(2, 3))`
+    ///     let buf: Box<_, MyHeap> = Box::try_new_with(|| Foo::new(2, 3)).unwrap();
+    ///     assert_eq!(*buf, Foo(2, 3));
+    ///
+    ///     // equivalent to `Box::try_new_in(Foo::default())`
+    ///     let buf: Box<_, MyHeap> = Box::try_new_with(Foo::default).unwrap();
+    ///     assert_eq!(*buf, Foo::default());
+    /// }
+    /// ```
+    ///
+    /// This is a convenience wrapper around [`allocator_api::Box::try_new_in_with`]
+    /// when the allocator implements `Default`.
+    ///
+    /// [`allocator_api::Box::try_new_in_with`]: trait.BoxInExt.html#tymethod.try_new_in_with
+    #[cfg(feature = "fallible")]
+    #[inline]
+    fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
+        BoxInExt::try_new_in_with(f, Default::default())
+    }
+
+    /// Fallible [`Box::new_zeroed`]
+    ///
+    /// [`Box::new_zeroed`]: #method.new_zeroed
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// extern crate allocator_api;
+    /// extern crate boxext;
+    /// use allocator_api::Box;
+    /// use boxext::BoxExt;
+    /// # include!("dummy.rs");
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new([0usize; 32])`
+    ///     let buf: Box<[usize; 32], MyHeap> = Box::try_new_zeroed().unwrap();
+    ///     assert_eq!(*buf, [0usize; 32]);
+    /// }
+    /// ```
+    ///
+    /// This is a convenience wrapper around [`allocator_api::Box::try_new_zeroed_in`]
+    /// when the allocator implements `Default`.
+    ///
+    /// [`allocator_api::Box::try_new_zeroed_in`]: trait.BoxInExt.html#tymethod.try_new_zeroed_in
+    ///
+    ///
+    /// # Safety
+    ///
+    /// This method is only assumed safe for `Self::Inner` types implementing
+    /// the [`Zero`] trait, and not available otherwise. See the definition
+    /// of that trait.
+    ///
+    /// [`Zero`]: trait.Zero.html
+    #[cfg(feature = "fallible")]
+    #[inline]
+    fn try_new_zeroed() -> Option<Self>
+    where
+        Self::Inner: Zero,
+    {
+        BoxInExt::try_new_zeroed_in(Default::default())
     }
 }

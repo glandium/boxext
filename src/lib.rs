@@ -55,9 +55,19 @@
 //!
 //! * `unstable-rust`: Use unstable rust features to more reliably use `calloc`
 //! and co. for `new_zeroed`.
+//!
+//! * `fallible`: Add `try_new`, `try_new_with`, and `try_new_zeroed` methods that
+//! don't panic on OOM. Requires either the `allocator_api` or `unstable-rust`
+//! feature.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "unstable-rust", feature(alloc, allocator_api))]
+
+#[cfg(all(feature = "fallible", not(feature = "unstable-rust"), not(feature = "allocator_api")))]
+compile_error!("The `fallible` feature requires either `unstable-rust` or `allocator_api`");
+
+#[cfg(all(feature = "fallible", feature = "std", not(feature = "unstable-rust")))]
+compile_error!("`fallible` + `std` requires `unstable-rust`");
 
 #[cfg(all(feature = "std", feature = "unstable-rust"))]
 extern crate alloc;
@@ -185,10 +195,120 @@ pub trait BoxExt {
     where
         Self: Sized,
         Self::Inner: Zero;
+
+    /// Fallible [`Box::new`]
+    ///
+    /// [`Box::new`]: https://doc.rust-lang.org/std/boxed/struct.Box.html#method.new
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate boxext;
+    /// use boxext::BoxExt;
+    ///
+    /// fn main() {
+    /// #   #[cfg(feature = "std")]
+    ///     let five = Box::try_new(5).unwrap();
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*five, 5);
+    /// }
+    /// ```
+    #[cfg(feature = "fallible")]
+    fn try_new(x: Self::Inner) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// Fallible [`Box::new_with`]
+    ///
+    /// [`Box::new_with`]: #method.new_with
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate boxext;
+    /// use boxext::BoxExt;
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// struct Foo(usize, usize);
+    ///
+    /// impl Foo {
+    ///     fn new(a: usize, b: usize) -> Self {
+    ///         Foo(a, b)
+    ///    }
+    /// }
+    ///
+    /// impl Default for Foo {
+    ///     fn default() -> Self {
+    ///         Foo::new(0, 1)
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new(Foo(1, 2))`
+    /// #   #[cfg(feature = "std")]
+    ///     let buf = Box::try_new_with(|| Foo(1, 2)).unwrap();
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, Foo(1, 2));
+    ///
+    ///     // equivalent to `Box::try_new(Foo::new(2, 3))`
+    /// #   #[cfg(feature = "std")]
+    ///     let buf = Box::try_new_with(|| Foo::new(2, 3)).unwrap();
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, Foo(2, 3));
+    ///
+    ///     // equivalent to `Box::try_new(Foo::default())`
+    /// #   #[cfg(feature = "std")]
+    ///     let buf = Box::try_new_with(Foo::default).unwrap();
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, Foo::default());
+    /// }
+    /// ```
+    #[cfg(feature = "fallible")]
+    fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// Fallible [`Box::new_zeroed`]
+    ///
+    /// [`Box::new_zeroed`]: #method.new_zeroed
+    ///
+    /// This returns `None` if memory couldn't be allocated.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// extern crate boxext;
+    /// use boxext::BoxExt;
+    ///
+    /// fn main() {
+    ///     // equivalent to `Box::try_new([0usize; 32])`
+    /// #   #[cfg(feature = "std")]
+    ///     let buf: Box<[usize; 32]> = Box::try_new_zeroed().unwrap();
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, [0usize; 32]);
+    /// }
+    /// ```
+    ///
+    /// # Safety
+    ///
+    /// This method is only assumed safe for `Self::Inner` types implementing
+    /// the [`Zero`] trait, and not available otherwise. See the definition
+    /// of that trait.
+    ///
+    /// [`Zero`]: trait.Zero.html
+    #[cfg(feature = "fallible")]
+    fn try_new_zeroed() -> Option<Self>
+    where
+        Self: Sized,
+        Self::Inner: Zero;
 }
 
 #[cfg(all(feature = "std", feature = "unstable-rust"))]
-unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
+unsafe fn new_box<T>(zeroed: bool) -> Option<Box<T>> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
         ptr::NonNull::<T>::dangling().as_ptr()
@@ -197,10 +317,11 @@ unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
     } else {
         Global.alloc(layout) as *mut T
     };
-    if raw.is_null() {
-        oom()
+    if !raw.is_null() {
+        Some(Box::from_raw(raw))
+    } else {
+        None
     }
-    Box::from_raw(raw)
 }
 
 #[cfg(feature = "std")]
@@ -211,7 +332,7 @@ impl<T> BoxExt for Box<T> {
     #[inline]
     fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
         unsafe {
-            let mut b = new_box::<T>(false);
+            let mut b = new_box::<T>(false).unwrap_or_else(|| oom());
             ptr::write(b.as_mut(), f());
             b
         }
@@ -235,7 +356,7 @@ impl<T> BoxExt for Box<T> {
     where
         T: Zero,
     {
-        unsafe { new_box(true) }
+        unsafe { new_box(true).unwrap_or_else(|| oom()) }
     }
 
     #[cfg(not(feature = "unstable-rust"))]
@@ -268,6 +389,35 @@ impl<T> BoxExt for Box<T> {
                 _ => Box::new_with(|| mem::zeroed()),
             }
         }
+    }
+
+    #[cfg(all(feature = "fallible", feature = "unstable-rust"))]
+    #[inline]
+    fn try_new(x: T) -> Option<Self> {
+        unsafe {
+            let mut b = new_box::<T>(false)?;
+            ptr::write(b.as_mut(), x);
+            Some(b)
+        }
+    }
+
+    #[cfg(all(feature = "fallible", feature = "unstable-rust"))]
+    #[inline]
+    fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
+        unsafe {
+            let mut b = new_box::<T>(false)?;
+            ptr::write(b.as_mut(), f());
+            Some(b)
+        }
+    }
+
+    #[cfg(all(feature = "fallible", feature = "unstable-rust"))]
+    #[inline]
+    fn try_new_zeroed() -> Option<Self>
+    where
+        Self::Inner: Zero,
+    {
+        unsafe { new_box::<T>(true) }
     }
 }
 
