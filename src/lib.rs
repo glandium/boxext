@@ -59,10 +59,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "unstable-rust", feature(alloc, allocator_api))]
 
-#[cfg(feature = "unstable-rust")]
+#[cfg(all(feature = "std", feature = "unstable-rust"))]
 extern crate alloc;
-#[cfg(feature = "unstable-rust")]
-use alloc::raw_vec::RawVec;
+#[cfg(all(feature = "std", feature = "unstable-rust"))]
+use alloc::alloc::{oom, Global, GlobalAlloc, Layout};
 
 #[cfg(all(feature = "std", not(feature = "unstable-rust")))]
 #[macro_use]
@@ -75,7 +75,10 @@ extern crate allocator_api;
 extern crate core;
 
 #[cfg(feature = "std")]
-use core::{mem, ptr};
+use core::ptr;
+
+#[cfg(all(feature = "std", not(feature = "unstable-rust")))]
+use core::mem;
 
 #[cfg(feature = "allocator_api")]
 mod allocator_box;
@@ -175,10 +178,37 @@ pub trait BoxExt {
         Self::Inner: Zero;
 }
 
+#[cfg(all(feature = "std", feature = "unstable-rust"))]
+unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
+    let layout = Layout::new::<T>();
+    let raw = if layout.size() == 0 {
+        ptr::NonNull::<T>::dangling().as_ptr()
+    } else if zeroed {
+        Global.alloc_zeroed(layout) as *mut T
+    } else {
+        Global.alloc(layout) as *mut T
+    };
+    if raw.is_null() {
+        oom()
+    }
+    Box::from_raw(raw)
+}
+
 #[cfg(feature = "std")]
 impl<T> BoxExt for Box<T> {
     type Inner = T;
 
+    #[cfg(feature = "unstable-rust")]
+    #[inline]
+    fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
+        unsafe {
+            let mut b = new_box::<T>(false);
+            ptr::write(b.as_mut(), f());
+            b
+        }
+    }
+
+    #[cfg(not(feature = "unstable-rust"))]
     #[inline]
     fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
         unsafe {
@@ -196,11 +226,7 @@ impl<T> BoxExt for Box<T> {
     where
         T: Zero,
     {
-        unsafe {
-            let v = RawVec::<T>::with_capacity_zeroed(1);
-            let raw = Box::into_raw(v.into_box());
-            Box::from_raw(raw as *mut T)
-        }
+        unsafe { new_box(true) }
     }
 
     #[cfg(not(feature = "unstable-rust"))]
