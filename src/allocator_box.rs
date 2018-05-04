@@ -6,8 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use allocator_api::{Alloc, Box, RawVec};
-use core::ptr;
+use allocator_api::{Alloc, Box, Layout, NonNullCast};
+use core::ptr::{self, NonNull};
 use {BoxExt, Zero};
 
 /// Extensions to the `allocator_api::Box` type
@@ -93,16 +93,27 @@ pub trait BoxInExt<A: Alloc> {
         Self::Inner: Zero;
 }
 
-impl<T, A: Alloc + Clone> BoxInExt<A> for Box<T, A> {
+unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Box<T, A> {
+    let layout = Layout::new::<T>();
+    let raw = if layout.size() == 0 {
+        NonNull::<T>::dangling()
+    } else if zeroed {
+        a.alloc_zeroed(layout).unwrap_or_else(|_| a.oom()).cast_()
+    } else {
+        a.alloc(layout).unwrap_or_else(|_| a.oom()).cast_()
+    };
+    Box::from_raw_in(raw.as_ptr(), a)
+}
+
+impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     type Inner = T;
 
     #[inline]
-    fn new_in_with<F: FnOnce() -> Self::Inner>(f: F, a: A) -> Self {
+    fn new_in_with<F: FnOnce() -> T>(f: F, a: A) -> Self {
         unsafe {
-            let v = RawVec::<T, A>::with_capacity_in(1, a.clone());
-            let raw = Box::into_raw(v.into_box()) as *mut T;
-            ptr::write(raw, f());
-            Box::from_raw_in(raw, a)
+            let mut b = new_box_in::<T, A>(a, false);
+            ptr::write(b.as_mut(), f());
+            b
         }
     }
 
@@ -111,15 +122,11 @@ impl<T, A: Alloc + Clone> BoxInExt<A> for Box<T, A> {
     where
         T: Zero,
     {
-        unsafe {
-            let v = RawVec::<T, A>::with_capacity_zeroed_in(1, a.clone());
-            let raw = Box::into_raw(v.into_box());
-            Box::from_raw_in(raw as *mut T, a)
-        }
+        unsafe { new_box_in::<T, A>(a, true) }
     }
 }
 
-impl<T, A: Alloc + Clone + Default> BoxExt for Box<T, A> {
+impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     type Inner = <Self as BoxInExt<A>>::Inner;
 
     /// Allocates memory in the given allocator and then places the result of
