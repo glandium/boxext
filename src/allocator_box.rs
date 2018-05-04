@@ -32,6 +32,7 @@ pub trait BoxInExt<A: Alloc> {
     /// use boxext::BoxInExt;
     /// # include!("dummy.rs");
     ///
+    /// #[derive(Debug, PartialEq)]
     /// struct Foo(usize, usize);
     ///
     /// impl Foo {
@@ -49,12 +50,15 @@ pub trait BoxInExt<A: Alloc> {
     /// fn main() {
     ///     // equivalent to `Box::new_in(Foo(1, 2), MyHeap)`
     ///     let buf = Box::new_in_with(|| Foo(1, 2), MyHeap);
+    ///     assert_eq!(*buf, Foo(1, 2));
     ///
     ///     // equivalent to `Box::new_in(Foo::new(2, 3), MyHeap)`
     ///     let buf = Box::new_in_with(|| Foo::new(2, 3), MyHeap);
+    ///     assert_eq!(*buf, Foo(2, 3));
     ///
     ///     // equivalent to `Box::new_in(Foo::default(), MyHeap)`
     ///     let buf = Box::new_in_with(Foo::default, MyHeap);
+    ///     assert_eq!(*buf, Foo::default());
     /// }
     /// ```
     fn new_in_with<F: FnOnce() -> Self::Inner>(f: F, a: A) -> Self;
@@ -75,8 +79,9 @@ pub trait BoxInExt<A: Alloc> {
     /// # include!("dummy.rs");
     ///
     /// fn main() {
-    ///     // equivalent to `Box::new_in([0usize; 64], MyHeap)`
-    ///     let buf: Box<[usize; 64], _> = Box::new_zeroed_in(MyHeap);
+    ///     // equivalent to `Box::new_in([0usize; 32], MyHeap)`
+    ///     let buf: Box<[usize; 32], _> = Box::new_zeroed_in(MyHeap);
+    ///     assert_eq!(*buf, [0usize; 32]);
     /// }
     /// ```
     ///
@@ -146,6 +151,7 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     /// use boxext::BoxExt;
     /// # include!("dummy.rs");
     ///
+    /// #[derive(Debug, PartialEq)]
     /// struct Foo(usize, usize);
     ///
     /// impl Foo {
@@ -157,9 +163,11 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     /// fn main() {
     ///     // equivalent to `Box::new_in(Foo(1, 2), MyHeap)`
     ///     let buf: Box<_, MyHeap> = Box::new_with(|| Foo(1, 2));
+    ///     assert_eq!(*buf, Foo(1, 2));
     ///
     ///     // equivalent to `Box::new_in(Foo::new(2, 3), MyHeap)`
     ///     let buf: Box<_, MyHeap> = Box::new_with(|| Foo::new(2, 3));
+    ///     assert_eq!(*buf, Foo(2, 3));
     /// }
     /// ```
     ///
@@ -188,8 +196,9 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     /// # include!("dummy.rs");
     ///
     /// fn main() {
-    ///     // equivalent to `Box::new_in([0usize; 64], MyHeap)`
-    ///     let buf: Box<[usize; 64], MyHeap> = Box::new_zeroed();
+    ///     // equivalent to `Box::new_in([0usize; 32], MyHeap)`
+    ///     let buf: Box<[usize; 32], MyHeap> = Box::new_zeroed();
+    ///     assert_eq!(*buf, [0usize; 32]);
     /// }
     /// ```
     ///

@@ -103,6 +103,7 @@ pub trait BoxExt {
     /// extern crate boxext;
     /// use boxext::BoxExt;
     ///
+    /// #[derive(Debug, PartialEq)]
     /// struct Foo(usize, usize);
     ///
     /// impl Foo {
@@ -121,14 +122,20 @@ pub trait BoxExt {
     ///     // equivalent to `Box::new(Foo(1, 2))`
     /// #   #[cfg(feature = "std")]
     ///     let buf = Box::new_with(|| Foo(1, 2));
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, Foo(1, 2));
     ///
     ///     // equivalent to `Box::new(Foo::new(2, 3))`
     /// #   #[cfg(feature = "std")]
     ///     let buf = Box::new_with(|| Foo::new(2, 3));
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, Foo(2, 3));
     ///
     ///     // equivalent to `Box::new(Foo::default())`
     /// #   #[cfg(feature = "std")]
     ///     let buf = Box::new_with(Foo::default);
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, Foo::default());
     /// }
     /// ```
     fn new_with<F: FnOnce() -> Self::Inner>(f: F) -> Self;
@@ -159,9 +166,11 @@ pub trait BoxExt {
     /// use boxext::BoxExt;
     ///
     /// fn main() {
-    ///     // equivalent to `Box::new([0usize; 64])`
+    ///     // equivalent to `Box::new([0usize; 32])`
     /// #   #[cfg(feature = "std")]
-    ///     let buf: Box<[usize; 64]> = Box::new_zeroed();
+    ///     let buf: Box<[usize; 32]> = Box::new_zeroed();
+    /// #   #[cfg(feature = "std")]
+    ///     assert_eq!(*buf, [0usize; 32]);
     /// }
     /// ```
     ///
@@ -281,6 +290,7 @@ impl<T> BoxExt for Box<T> {
 /// extern crate boxext;
 /// use boxext::{BoxExt, Zero};
 ///
+/// #[derive(Debug, PartialEq)]
 /// struct Foo(usize);
 ///
 /// unsafe impl Zero for Foo {}
@@ -289,6 +299,8 @@ impl<T> BoxExt for Box<T> {
 ///     // equivalent to `Box::new(Foo(0))`
 /// #   #[cfg(feature = "std")]
 ///     let buf: Box<Foo> = Box::new_zeroed();
+/// #   #[cfg(feature = "std")]
+///     assert_eq!(*buf, Foo(0));
 /// }
 /// ```
 ///
@@ -301,13 +313,15 @@ impl<T> BoxExt for Box<T> {
 /// extern crate boxext_derive;
 /// use boxext::BoxExt;
 ///
-/// #[derive(Zero)]
+/// #[derive(Zero, Debug, PartialEq)]
 /// struct Foo(usize);
 ///
 /// fn main() {
 ///     // equivalent to `Box::new(Foo(0))`
 /// #   #[cfg(feature = "std")]
 ///     let buf: Box<Foo> = Box::new_zeroed();
+/// #   #[cfg(feature = "std")]
+///     assert_eq!(*buf, Foo(0));
 /// }
 /// ```
 ///
