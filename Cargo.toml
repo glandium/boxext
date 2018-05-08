@@ -20,3 +20,6 @@ allocator_api = { version = "0.2", optional = true }
 
 [dev-dependencies]
 boxext_derive = { path = "boxext_derive", version = "0.1" }
+
+[build-dependencies]
+rustc_version = "0.2"

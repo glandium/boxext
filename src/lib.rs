@@ -74,7 +74,7 @@ extern crate alloc;
 #[cfg(all(feature = "std", feature = "unstable-rust"))]
 use alloc::alloc::{oom, Global, GlobalAlloc, Layout};
 
-#[cfg(all(feature = "std", not(feature = "unstable-rust")))]
+#[cfg(all(feature = "std", feature = "static_assertions", not(feature = "unstable-rust")))]
 #[macro_use]
 extern crate static_assertions;
 
@@ -367,6 +367,7 @@ impl<T> BoxExt for Box<T> {
     {
         macro_rules! new_zeroed {
             ($t:ty, $align:expr, $size:expr) => {{
+                #[cfg(feature = "static_assertions")]
                 const_assert_eq!(mem::align_of::<$t>(), $align);
                 let mut v = vec![0 as $t; $size];
                 let raw: *mut $t = v.as_mut_ptr();
