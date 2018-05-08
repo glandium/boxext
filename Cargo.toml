@@ -1,6 +1,6 @@
 [package]
 name = "boxext"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Mike Hommey <mh@glandium.org>"]
 license = "Apache-2.0/MIT"
 description = "Extensions to the `Box` type"
