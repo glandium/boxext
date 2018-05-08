@@ -83,7 +83,8 @@ with `no_std` code, in which case `allocator_api` needs to be enabled.
 * `unstable-rust`: Use unstable rust features to more reliably use `calloc`
 and co. for `new_zeroed`.
 
-* `fallible`: Add a `try_new` method that doesn't panic on OOM. Requires
-either the `allocator_api` or `unstable-rust` feature.
+* `fallible`: Add `try_new`, `try_new_with`, and `try_new_zeroed` methods that
+don't panic on OOM. Requires either the `allocator_api` or `unstable-rust`
+feature.
 
 License: Apache-2.0/MIT
