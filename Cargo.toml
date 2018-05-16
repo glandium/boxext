@@ -16,7 +16,7 @@ fallible = []
 
 [dependencies]
 static_assertions = "0.2"
-allocator_api = { version = ">=0.2,<0.4", optional = true }
+allocator_api = { version = "0.3", optional = true }
 
 [dev-dependencies]
 boxext_derive = { path = "boxext_derive", version = "0.1" }

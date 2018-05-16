@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![cfg_attr(feature = "unstable_name_collision", allow(unstable_name_collision))]
+
 use allocator_api::{Alloc, Box, Layout, NonNullCast};
 use core::ptr::{self, NonNull};
 use {BoxExt, Zero};
@@ -215,9 +217,9 @@ unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Result<Box<T, A>, A
     let raw = if layout.size() == 0 {
         Ok(NonNull::<T>::dangling())
     } else if zeroed {
-        a.alloc_zeroed(layout).map(NonNull::cast_)
+        a.alloc_zeroed(layout).map(NonNull::cast)
     } else {
-        a.alloc(layout).map(NonNull::cast_)
+        a.alloc(layout).map(NonNull::cast)
     };
     match raw {
         Ok(raw) => Ok(Box::from_raw_in(raw.as_ptr(), a)),
@@ -249,7 +251,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     #[inline]
     fn try_new_in(x: T, mut a: A) -> Option<Self> {
         unsafe {
-            let raw = a.alloc(Layout::new::<T>()).ok()?.cast_().as_ptr();
+            let raw = a.alloc(Layout::new::<T>()).ok()?.cast().as_ptr();
             ptr::write(raw, x);
             Some(Box::from_raw_in(raw, a))
         }
@@ -259,7 +261,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     #[inline]
     fn try_new_in_with<F: FnOnce() -> Self::Inner>(f: F, mut a: A) -> Option<Self> {
         unsafe {
-            let raw = a.alloc(Layout::new::<T>()).ok()?.cast_().as_ptr();
+            let raw = a.alloc(Layout::new::<T>()).ok()?.cast().as_ptr();
             ptr::write(raw, f());
             Some(Box::from_raw_in(raw, a))
         }
@@ -269,7 +271,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     #[inline]
     fn try_new_zeroed_in(mut a: A) -> Option<Self> {
         unsafe {
-            let raw = a.alloc_zeroed(Layout::new::<T>()).ok()?.cast_();
+            let raw = a.alloc_zeroed(Layout::new::<T>()).ok()?.cast();
             Some(Box::from_raw_in(raw.as_ptr(), a))
         }
     }
