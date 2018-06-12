@@ -6,9 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![cfg_attr(feature = "unstable_name_collision", allow(unstable_name_collision))]
+#![cfg_attr(not(feature = "nonnull_cast"), allow(unstable_name_collision))]
 
-use allocator_api::{Alloc, Box, Layout, NonNullCast};
+use allocator_api::{Alloc, Box, Layout, oom};
+#[cfg(not(feature = "nonnull_cast"))]
+use allocator_api::NonNullCast;
 use core::ptr::{self, NonNull};
 use {BoxExt, Zero};
 
@@ -209,10 +211,9 @@ pub trait BoxInExt<A: Alloc> {
 }
 
 // Creates a new box in the given allocator, for the given type.
-// If the memory could be allocated, returns Ok(box). Otherwise, returns Err(a),
-// allowing the caller to access the allocator again (the function takes ownership
-// of it).
-unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Result<Box<T, A>, A> {
+// If the memory could be allocated, returns Ok(box). Otherwise, returns Err(layout),
+// allowing the caller to access the layout that failed allocation.
+unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Result<Box<T, A>, Layout> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
         Ok(NonNull::<T>::dangling())
@@ -223,7 +224,7 @@ unsafe fn new_box_in<T, A: Alloc>(mut a: A, zeroed: bool) -> Result<Box<T, A>, A
     };
     match raw {
         Ok(raw) => Ok(Box::from_raw_in(raw.as_ptr(), a)),
-        Err(_) => Err(a),
+        Err(_) => Err(layout),
     }
 }
 
@@ -233,7 +234,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     #[inline]
     fn new_in_with<F: FnOnce() -> T>(f: F, a: A) -> Self {
         unsafe {
-            let mut b = new_box_in::<T, A>(a, false).unwrap_or_else(|mut a| a.oom());
+            let mut b = new_box_in::<T, A>(a, false).unwrap_or_else(|l| oom(l));
             ptr::write(b.as_mut(), f());
             b
         }
@@ -244,7 +245,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     where
         T: Zero,
     {
-        unsafe { new_box_in::<T, A>(a, true).unwrap_or_else(|mut a| a.oom()) }
+        unsafe { new_box_in::<T, A>(a, true).unwrap_or_else(|l| oom(l)) }
     }
 
     #[cfg(feature = "fallible")]
