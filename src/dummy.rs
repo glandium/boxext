@@ -2,7 +2,7 @@
 
 mod dummy {
     extern crate core;
-    use super::allocator_api::{Alloc, AllocErr, Layout, Opaque};
+    use super::allocator_api::{Alloc, AllocErr, Layout};
     use self::core::ptr::NonNull;
 
     #[derive(Clone, Default)]
@@ -12,7 +12,7 @@ mod dummy {
     static mut HEAP_CURSOR: usize = 0;
 
     unsafe impl<'a> Alloc for MyHeap {
-        unsafe fn alloc(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
+        unsafe fn alloc(&mut self, layout: Layout) -> Result<NonNull<u8>, AllocErr> {
             let ptr = HEAP_BUF.as_ptr() as usize;
             let mut start = HEAP_CURSOR;
             let modulo = (ptr + start) & (layout.align() - 1);
@@ -23,10 +23,10 @@ mod dummy {
             let end = start + layout.size();
             let buf = HEAP_BUF.get_mut(start..end);
             HEAP_CURSOR = end;
-            buf.map(|b| NonNull::new_unchecked(b as *mut [u8] as *mut u8 as *mut Opaque))
+            buf.map(|b| NonNull::new_unchecked(b as *mut [u8] as *mut u8))
                 .ok_or_else(|| AllocErr)
         }
-        unsafe fn dealloc(&mut self, _ptr: NonNull<Opaque>, _layout: Layout) {}
+        unsafe fn dealloc(&mut self, _ptr: NonNull<u8>, _layout: Layout) {}
     }
 
 }
