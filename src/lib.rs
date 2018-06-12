@@ -396,7 +396,7 @@ impl<T> BoxExt for Box<T> {
     #[inline]
     fn try_new(x: T) -> Option<Self> {
         unsafe {
-            let mut b = new_box::<T>(false)?;
+            let mut b = new_box::<T>(false).ok()?;
             ptr::write(b.as_mut(), x);
             Some(b)
         }
@@ -406,7 +406,7 @@ impl<T> BoxExt for Box<T> {
     #[inline]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
         unsafe {
-            let mut b = new_box::<T>(false)?;
+            let mut b = new_box::<T>(false).ok()?;
             ptr::write(b.as_mut(), f());
             Some(b)
         }
@@ -418,7 +418,7 @@ impl<T> BoxExt for Box<T> {
     where
         Self::Inner: Zero,
     {
-        unsafe { new_box::<T>(true) }
+        unsafe { new_box::<T>(true).ok() }
     }
 }
 
