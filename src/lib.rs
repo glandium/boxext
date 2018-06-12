@@ -308,7 +308,7 @@ pub trait BoxExt {
 }
 
 #[cfg(all(feature = "std", feature = "unstable-rust"))]
-unsafe fn new_box<T>(zeroed: bool) -> Option<Box<T>> {
+unsafe fn new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
         ptr::NonNull::<T>::dangling().as_ptr()
@@ -318,9 +318,9 @@ unsafe fn new_box<T>(zeroed: bool) -> Option<Box<T>> {
         Global.alloc(layout) as *mut T
     };
     if !raw.is_null() {
-        Some(Box::from_raw(raw))
+        Ok(Box::from_raw(raw))
     } else {
-        None
+        Err(layout)
     }
 }
 
@@ -332,7 +332,7 @@ impl<T> BoxExt for Box<T> {
     #[inline]
     fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
         unsafe {
-            let mut b = new_box::<T>(false).unwrap_or_else(|| oom());
+            let mut b = new_box::<T>(false).unwrap_or_else(|l| oom(l));
             ptr::write(b.as_mut(), f());
             b
         }
@@ -356,7 +356,7 @@ impl<T> BoxExt for Box<T> {
     where
         T: Zero,
     {
-        unsafe { new_box(true).unwrap_or_else(|| oom()) }
+        unsafe { new_box(true).unwrap_or_else(|l| oom(l)) }
     }
 
     #[cfg(not(feature = "unstable-rust"))]
