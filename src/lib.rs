@@ -53,28 +53,22 @@
 //! * `allocator_api`: Add similar helpers to the `Box` type from the
 //! `allocator_api` crate.
 //!
-//! * `unstable-rust`: Use unstable rust features to more reliably use `calloc`
-//! and co. for `new_zeroed`.
-//!
-//! * `fallible`: Add `try_new`, `try_new_with`, and `try_new_zeroed` methods that
-//! don't panic on OOM. Requires either the `allocator_api` or `unstable-rust`
-//! feature.
+//! * `fallible`: Add `try_new`, `try_new_with`, and `try_new_zeroed` methods
+//! that don't panic on OOM. Requires either the `allocator_api` feature or
+//! rust >= 1.28.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "unstable-rust", feature(alloc, allocator_api))]
 
-#[cfg(all(feature = "fallible", not(feature = "unstable-rust"), not(feature = "allocator_api")))]
-compile_error!("The `fallible` feature requires either `unstable-rust` or `allocator_api`");
+#[cfg(all(feature = "fallible", not(feature = "global_alloc"), not(feature = "allocator_api")))]
+compile_error!("The `fallible` feature requires either rust 1.28 or the `allocator_api` feature");
 
-#[cfg(all(feature = "fallible", feature = "std", not(feature = "unstable-rust")))]
-compile_error!("`fallible` + `std` requires `unstable-rust`");
+#[cfg(all(feature = "fallible", feature = "std", not(feature = "global_alloc")))]
+compile_error!("`fallible` + `std` requires rust 1.28");
 
-#[cfg(all(feature = "std", feature = "unstable-rust"))]
-extern crate alloc;
-#[cfg(all(feature = "std", feature = "unstable-rust"))]
-use alloc::alloc::{oom, alloc, alloc_zeroed, Layout};
+#[cfg(all(feature = "std", feature = "global_alloc"))]
+use std::alloc::{oom, alloc, alloc_zeroed, Layout};
 
-#[cfg(all(feature = "std", feature = "static_assertions", not(feature = "unstable-rust")))]
+#[cfg(all(feature = "std", feature = "static_assertions", not(feature = "global_alloc")))]
 #[macro_use]
 extern crate static_assertions;
 
@@ -87,7 +81,7 @@ extern crate core;
 #[cfg(feature = "std")]
 use core::ptr;
 
-#[cfg(all(feature = "std", not(feature = "unstable-rust")))]
+#[cfg(all(feature = "std", not(feature = "global_alloc")))]
 use core::mem;
 
 #[cfg(feature = "allocator_api")]
@@ -166,8 +160,8 @@ pub trait BoxExt {
     /// `Self::Inner` is less the pointer size. Otherwise, this is
     /// equivalent to `Box::new_with(|| std::mem::zeroed())`.
     ///
-    /// When the `unstable-rust` feature is enabled, zeroed memory is
-    /// unconditionally obtained from the allocator.
+    /// When using rust >= 1.28, zeroed memory is unconditionally obtained
+    /// from the allocator.
     ///
     /// # Example
     ///
@@ -307,7 +301,7 @@ pub trait BoxExt {
         Self::Inner: Zero;
 }
 
-#[cfg(all(feature = "std", feature = "unstable-rust"))]
+#[cfg(all(feature = "std", feature = "global_alloc"))]
 unsafe fn new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
@@ -328,7 +322,7 @@ unsafe fn new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
 impl<T> BoxExt for Box<T> {
     type Inner = T;
 
-    #[cfg(feature = "unstable-rust")]
+    #[cfg(feature = "global_alloc")]
     #[inline]
     fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
         unsafe {
@@ -338,7 +332,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(not(feature = "unstable-rust"))]
+    #[cfg(not(feature = "global_alloc"))]
     #[inline]
     fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
         unsafe {
@@ -350,7 +344,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(feature = "unstable-rust")]
+    #[cfg(feature = "global_alloc")]
     #[inline]
     fn new_zeroed() -> Box<T>
     where
@@ -359,7 +353,7 @@ impl<T> BoxExt for Box<T> {
         unsafe { new_box(true).unwrap_or_else(|l| oom(l)) }
     }
 
-    #[cfg(not(feature = "unstable-rust"))]
+    #[cfg(not(feature = "global_alloc"))]
     #[inline]
     fn new_zeroed() -> Box<T>
     where
@@ -392,7 +386,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(all(feature = "fallible", feature = "unstable-rust"))]
+    #[cfg(all(feature = "fallible", feature = "global_alloc"))]
     #[inline]
     fn try_new(x: T) -> Option<Self> {
         unsafe {
@@ -402,7 +396,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(all(feature = "fallible", feature = "unstable-rust"))]
+    #[cfg(all(feature = "fallible", feature = "global_alloc"))]
     #[inline]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
         unsafe {
@@ -412,7 +406,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(all(feature = "fallible", feature = "unstable-rust"))]
+    #[cfg(all(feature = "fallible", feature = "global_alloc"))]
     #[inline]
     fn try_new_zeroed() -> Option<Self>
     where

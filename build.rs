@@ -9,4 +9,7 @@ fn main() {
     if version().unwrap() >= Version::parse("1.27.0-beta").unwrap() {
         println!("cargo:rustc-cfg=feature=\"nonnull_cast\"");
     }
+    if version().unwrap() >= Version::parse("1.28.0-alpha").unwrap() {
+        println!("cargo:rustc-cfg=feature=\"global_alloc\"");
+    }
 }

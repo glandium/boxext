@@ -80,11 +80,7 @@ with `no_std` code, in which case `allocator_api` needs to be enabled.
 * `allocator_api`: Add similar helpers to the `Box` type from the
 `allocator_api` crate.
 
-* `unstable-rust`: Use unstable rust features to more reliably use `calloc`
-and co. for `new_zeroed`.
-
 * `fallible`: Add `try_new`, `try_new_with`, and `try_new_zeroed` methods that
-don't panic on OOM. Requires either the `allocator_api` or `unstable-rust`
-feature.
+don't panic on OOM. Requires either the `allocator_api` feature or rust >= 1.28.
 
 License: Apache-2.0/MIT

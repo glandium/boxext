@@ -11,13 +11,9 @@ matrix:
   - rust: beta
     env: ALLOCATOR_API=1
   - rust: nightly
-    env:
-    - ALLOCATOR_API=1
-    - UNSTABLE_RUST=1
+    env: ALLOCATOR_API=1
 cache: cargo
 script:
   - cargo test --verbose
   - if [ "$ALLOCATOR_API" ]; then cargo test --verbose --features allocator_api; fi
   - if [ "$ALLOCATOR_API" ]; then cargo test --verbose --features allocator_api,fallible --no-default-features; fi
-  - if [ "$UNSTABLE_RUST" ]; then cargo test --verbose --features unstable-rust; fi
-  - if [ "$UNSTABLE_RUST" ]; then cargo test --verbose --features unstable-rust,fallible; fi
