@@ -72,7 +72,7 @@ compile_error!("`fallible` + `std` requires `unstable-rust`");
 #[cfg(all(feature = "std", feature = "unstable-rust"))]
 extern crate alloc;
 #[cfg(all(feature = "std", feature = "unstable-rust"))]
-use alloc::alloc::{oom, Global, GlobalAlloc, Layout};
+use alloc::alloc::{oom, alloc, alloc_zeroed, Layout};
 
 #[cfg(all(feature = "std", feature = "static_assertions", not(feature = "unstable-rust")))]
 #[macro_use]
@@ -313,9 +313,9 @@ unsafe fn new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     let raw = if layout.size() == 0 {
         ptr::NonNull::<T>::dangling().as_ptr()
     } else if zeroed {
-        Global.alloc_zeroed(layout) as *mut T
+        alloc_zeroed(layout) as *mut T
     } else {
-        Global.alloc(layout) as *mut T
+        alloc(layout) as *mut T
     };
     if !raw.is_null() {
         Ok(Box::from_raw(raw))
