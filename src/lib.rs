@@ -39,6 +39,11 @@
 //! using [`calloc`]/[`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]/
 //! [`mallocx(..., MALLOCX_ZERO)`] under the hood.
 //!
+//! * `try_new`, `try_new_with`, and `try_new_zeroed`, which are equivalent
+//! to `new`, `new_with` and `new_zeroed`, but don't panic on allocation
+//! failure. These methods are only available on rust >= 1.28 or with the
+//! `allocator_api` feature.
+//!
 //! [`new_with`]: trait.BoxExt.html#tymethod.new_with
 //! [`new_zeroed`]: trait.BoxExt.html#tymethod.new_zeroed
 //! [`calloc`]: http://pubs.opengroup.org/onlinepubs/009695399/functions/calloc.html
@@ -52,18 +57,8 @@
 //!
 //! * `allocator_api`: Add similar helpers to the `Box` type from the
 //! `allocator_api` crate.
-//!
-//! * `fallible`: Add `try_new`, `try_new_with`, and `try_new_zeroed` methods
-//! that don't panic on OOM. Requires either the `allocator_api` feature or
-//! rust >= 1.28.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
-#[cfg(all(feature = "fallible", not(feature = "global_alloc"), not(feature = "allocator_api")))]
-compile_error!("The `fallible` feature requires either rust 1.28 or the `allocator_api` feature");
-
-#[cfg(all(feature = "fallible", feature = "std", not(feature = "global_alloc")))]
-compile_error!("`fallible` + `std` requires rust 1.28");
 
 #[cfg(all(feature = "std", feature = "global_alloc"))]
 use std::alloc::{oom, alloc, alloc_zeroed, Layout};
@@ -209,7 +204,7 @@ pub trait BoxExt {
     ///     assert_eq!(*five, 5);
     /// }
     /// ```
-    #[cfg(feature = "fallible")]
+    #[cfg(any(feature = "allocator_api", feature = "global_alloc"))]
     fn try_new(x: Self::Inner) -> Option<Self>
     where
         Self: Sized;
@@ -261,7 +256,7 @@ pub trait BoxExt {
     ///     assert_eq!(*buf, Foo::default());
     /// }
     /// ```
-    #[cfg(feature = "fallible")]
+    #[cfg(any(feature = "allocator_api", feature = "global_alloc"))]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self>
     where
         Self: Sized;
@@ -294,7 +289,7 @@ pub trait BoxExt {
     /// of that trait.
     ///
     /// [`Zero`]: trait.Zero.html
-    #[cfg(feature = "fallible")]
+    #[cfg(any(feature = "allocator_api", feature = "global_alloc"))]
     fn try_new_zeroed() -> Option<Self>
     where
         Self: Sized,
@@ -386,7 +381,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(all(feature = "fallible", feature = "global_alloc"))]
+    #[cfg(feature = "global_alloc")]
     #[inline]
     fn try_new(x: T) -> Option<Self> {
         unsafe {
@@ -396,7 +391,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(all(feature = "fallible", feature = "global_alloc"))]
+    #[cfg(feature = "global_alloc")]
     #[inline]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
         unsafe {
@@ -406,7 +401,7 @@ impl<T> BoxExt for Box<T> {
         }
     }
 
-    #[cfg(all(feature = "fallible", feature = "global_alloc"))]
+    #[cfg(feature = "global_alloc")]
     #[inline]
     fn try_new_zeroed() -> Option<Self>
     where

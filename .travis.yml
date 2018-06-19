@@ -16,4 +16,4 @@ cache: cargo
 script:
   - cargo test --verbose
   - if [ "$ALLOCATOR_API" ]; then cargo test --verbose --features allocator_api; fi
-  - if [ "$ALLOCATOR_API" ]; then cargo test --verbose --features allocator_api,fallible --no-default-features; fi
+  - if [ "$ALLOCATOR_API" ]; then cargo test --verbose --features allocator_api --no-default-features; fi

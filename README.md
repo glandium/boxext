@@ -31,6 +31,11 @@ will be placed in the Box.
 using [`calloc`]/[`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]/
 [`mallocx(..., MALLOCX_ZERO)`] under the hood.
 
+* `try_new`, `try_new_with`, and `try_new_zeroed`, which are equivalent
+to `new`, `new_with` and `new_zeroed`, but don't panic on allocation
+failure. These methods are only available on rust >= 1.28 or with the
+`allocator_api` feature.
+
 [`new_with`]: https://docs.rs/boxext/0.1.0/boxext/trait.BoxExt.html#tymethod.new_with
 [`new_zeroed`]: https://docs.rs/boxext/0.1.0/boxext/trait.BoxExt.html#tymethod.new_zeroed
 [`calloc`]: http://pubs.opengroup.org/onlinepubs/009695399/functions/calloc.html

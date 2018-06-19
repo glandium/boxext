@@ -121,7 +121,6 @@ pub trait BoxInExt<A: Alloc> {
     ///     assert_eq!(*five, 5);
     /// }
     /// ```
-    #[cfg(feature = "fallible")]
     fn try_new_in(x: Self::Inner, a: A) -> Option<Self>
     where
         Self: Sized;
@@ -170,7 +169,6 @@ pub trait BoxInExt<A: Alloc> {
     ///     assert_eq!(*buf, Foo::default());
     /// }
     /// ```
-    #[cfg(feature = "fallible")]
     fn try_new_in_with<F: FnOnce() -> Self::Inner>(f: F, a: A) -> Option<Self>
     where
         Self: Sized;
@@ -204,7 +202,6 @@ pub trait BoxInExt<A: Alloc> {
     /// of that trait.
     ///
     /// [`Zero`]: trait.Zero.html
-    #[cfg(feature = "fallible")]
     fn try_new_zeroed_in(a: A) -> Option<Self>
     where
         Self: Sized;
@@ -248,7 +245,6 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
         unsafe { new_box_in::<T, A>(a, true).unwrap_or_else(|l| oom(l)) }
     }
 
-    #[cfg(feature = "fallible")]
     #[inline]
     fn try_new_in(x: T, mut a: A) -> Option<Self> {
         unsafe {
@@ -258,7 +254,6 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
         }
     }
 
-    #[cfg(feature = "fallible")]
     #[inline]
     fn try_new_in_with<F: FnOnce() -> Self::Inner>(f: F, mut a: A) -> Option<Self> {
         unsafe {
@@ -268,7 +263,6 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
         }
     }
 
-    #[cfg(feature = "fallible")]
     #[inline]
     fn try_new_zeroed_in(mut a: A) -> Option<Self> {
         unsafe {
@@ -395,7 +389,6 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     /// when the allocator implements `Default`.
     ///
     /// [`allocator_api::Box::try_new_in`]: trait.BoxInExt.html#tymethod.try_new_in
-    #[cfg(feature = "fallible")]
     #[inline]
     fn try_new(x: T) -> Option<Self> {
         BoxInExt::try_new_in(x, Default::default())
@@ -450,7 +443,6 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     /// when the allocator implements `Default`.
     ///
     /// [`allocator_api::Box::try_new_in_with`]: trait.BoxInExt.html#tymethod.try_new_in_with
-    #[cfg(feature = "fallible")]
     #[inline]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
         BoxInExt::try_new_in_with(f, Default::default())
@@ -491,7 +483,6 @@ impl<T, A: Alloc + Default> BoxExt for Box<T, A> {
     /// of that trait.
     ///
     /// [`Zero`]: trait.Zero.html
-    #[cfg(feature = "fallible")]
     #[inline]
     fn try_new_zeroed() -> Option<Self>
     where

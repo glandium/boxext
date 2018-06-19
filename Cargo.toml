@@ -11,7 +11,6 @@ keywords = ["box", "allocator"]
 [features]
 default = ["std"]
 std = []
-fallible = []
 
 [dependencies]
 static_assertions = "0.2"
