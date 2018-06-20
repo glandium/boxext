@@ -8,7 +8,7 @@
 
 #![cfg_attr(not(feature = "nonnull_cast"), allow(unstable_name_collision))]
 
-use allocator_api::{Alloc, Box, Layout, oom};
+use allocator_api::{Alloc, Box, Layout, handle_alloc_error};
 #[cfg(not(feature = "nonnull_cast"))]
 use allocator_api::NonNullCast;
 use core::ptr::{self, NonNull};
@@ -231,7 +231,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     #[inline]
     fn new_in_with<F: FnOnce() -> T>(f: F, a: A) -> Self {
         unsafe {
-            let mut b = new_box_in::<T, A>(a, false).unwrap_or_else(|l| oom(l));
+            let mut b = new_box_in::<T, A>(a, false).unwrap_or_else(|l| handle_alloc_error(l));
             ptr::write(b.as_mut(), f());
             b
         }
@@ -242,7 +242,7 @@ impl<T, A: Alloc> BoxInExt<A> for Box<T, A> {
     where
         T: Zero,
     {
-        unsafe { new_box_in::<T, A>(a, true).unwrap_or_else(|l| oom(l)) }
+        unsafe { new_box_in::<T, A>(a, true).unwrap_or_else(|l| handle_alloc_error(l)) }
     }
 
     #[inline]
