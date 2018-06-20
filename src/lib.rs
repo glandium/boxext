@@ -64,7 +64,7 @@
 #![cfg_attr(all(feature = "std", not(feature = "global_alloc")), feature(allocator_api))]
 
 #[cfg(all(feature = "std", feature = "global_alloc"))]
-use std::alloc::{oom, alloc, alloc_zeroed, Layout};
+use std::alloc::{handle_alloc_error, alloc, alloc_zeroed, Layout};
 
 #[cfg(all(feature = "std", not(feature = "global_alloc")))]
 use std::heap::{Alloc, Layout};
@@ -317,7 +317,7 @@ unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
 
 #[cfg(all(feature = "std", feature = "global_alloc"))]
 unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
-    try_new_box::<T>(zeroed).unwrap_or_else(|l| oom(l))
+    try_new_box::<T>(zeroed).unwrap_or_else(|l| handle_alloc_error(l))
 }
 
 #[cfg(all(feature = "std", feature = "global_alloc27"))]
