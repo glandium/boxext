@@ -39,13 +39,15 @@
 //! using [`calloc`]/[`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]/
 //! [`mallocx(..., MALLOCX_ZERO)`] under the hood.
 //!
-//! * `try_new`, `try_new_with`, and `try_new_zeroed`, which are equivalent
+//! * [`try_new`], [`try_new_with`], and [`try_new_zeroed`], which are equivalent
 //! to `new`, `new_with` and `new_zeroed`, but don't panic on allocation
-//! failure. These methods are only available on rust >= 1.28 or with the
-//! `allocator_api` feature.
+//! failure.
 //!
 //! [`new_with`]: trait.BoxExt.html#tymethod.new_with
 //! [`new_zeroed`]: trait.BoxExt.html#tymethod.new_zeroed
+//! [`try_new`]: trait.BoxExt.html#tymethod.try_new
+//! [`try_new_with`]: trait.BoxExt.html#tymethod.try_new_with
+//! [`try_new_zeroed`]: trait.BoxExt.html#tymethod.try_new_zeroed
 //! [`calloc`]: http://pubs.opengroup.org/onlinepubs/009695399/functions/calloc.html
 //! [`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366597(v=vs.85).aspx#HEAP_ZERO_MEMORY
 //! [`mallocx(..., MALLOCX_ZERO)`]: http://jemalloc.net/jemalloc.3.html#MALLOCX_ZERO
@@ -59,13 +61,19 @@
 //! `allocator_api` crate.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(all(feature = "std", not(feature = "global_alloc")), feature(allocator_api))]
 
 #[cfg(all(feature = "std", feature = "global_alloc"))]
 use std::alloc::{oom, alloc, alloc_zeroed, Layout};
 
-#[cfg(all(feature = "std", feature = "static_assertions", not(feature = "global_alloc")))]
-#[macro_use]
-extern crate static_assertions;
+#[cfg(all(feature = "std", not(feature = "global_alloc")))]
+use std::heap::{Alloc, Layout};
+
+#[cfg(all(feature = "std", not(feature = "global_alloc"), not(feature = "global_alloc27")))]
+use std::heap::{AllocErr, Heap};
+
+#[cfg(all(feature = "std", feature = "global_alloc27"))]
+use std::heap::{oom, Global as Heap};
 
 #[cfg(feature = "allocator_api")]
 extern crate allocator_api;
@@ -75,9 +83,6 @@ extern crate core;
 
 #[cfg(feature = "std")]
 use core::ptr;
-
-#[cfg(all(feature = "std", not(feature = "global_alloc")))]
-use core::mem;
 
 #[cfg(feature = "allocator_api")]
 mod allocator_box;
@@ -204,7 +209,6 @@ pub trait BoxExt {
     ///     assert_eq!(*five, 5);
     /// }
     /// ```
-    #[cfg(any(feature = "allocator_api", feature = "global_alloc"))]
     fn try_new(x: Self::Inner) -> Option<Self>
     where
         Self: Sized;
@@ -256,7 +260,6 @@ pub trait BoxExt {
     ///     assert_eq!(*buf, Foo::default());
     /// }
     /// ```
-    #[cfg(any(feature = "allocator_api", feature = "global_alloc"))]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self>
     where
         Self: Sized;
@@ -289,7 +292,6 @@ pub trait BoxExt {
     /// of that trait.
     ///
     /// [`Zero`]: trait.Zero.html
-    #[cfg(any(feature = "allocator_api", feature = "global_alloc"))]
     fn try_new_zeroed() -> Option<Self>
     where
         Self: Sized,
@@ -297,7 +299,7 @@ pub trait BoxExt {
 }
 
 #[cfg(all(feature = "std", feature = "global_alloc"))]
-unsafe fn new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
+unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
         ptr::NonNull::<T>::dangling().as_ptr()
@@ -313,101 +315,98 @@ unsafe fn new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     }
 }
 
+#[cfg(all(feature = "std", feature = "global_alloc"))]
+unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
+    try_new_box::<T>(zeroed).unwrap_or_else(|l| oom(l))
+}
+
+#[cfg(all(feature = "std", feature = "global_alloc27"))]
+unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
+    let layout = Layout::new::<T>();
+    let raw = if layout.size() == 0 {
+        Ok(ptr::NonNull::<T>::dangling().cast())
+    } else if zeroed {
+        Heap.alloc_zeroed(layout).map(|p| p.cast())
+    } else {
+        Heap.alloc(layout).map(|p| p.cast())
+    };
+    match raw {
+        Ok(raw) => Ok(Box::from_raw(raw.as_ptr())),
+        Err(_) => Err(layout),
+    }
+}
+
+#[cfg(all(feature = "std", feature = "global_alloc27"))]
+unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
+    try_new_box::<T>(zeroed).unwrap_or_else(|_| oom())
+}
+
+#[cfg(all(feature = "std", not(feature = "global_alloc"), not(feature = "global_alloc27")))]
+unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
+    let layout = Layout::new::<T>();
+    let raw = if layout.size() == 0 {
+        Ok(layout.align() as *mut u8)
+    } else if zeroed {
+        Heap.alloc_zeroed(layout.clone())
+    } else {
+        Heap.alloc(layout.clone())
+    };
+    match raw {
+        Ok(raw) => Ok(Box::from_raw(raw as *mut T)),
+        Err(_) => Err(layout),
+    }
+}
+
+#[cfg(all(feature = "std", not(feature = "global_alloc"), not(feature = "global_alloc27")))]
+unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
+    try_new_box::<T>(zeroed).unwrap_or_else(|l| Heap.oom(AllocErr::Exhausted { request: l }))
+}
+
 #[cfg(feature = "std")]
 impl<T> BoxExt for Box<T> {
     type Inner = T;
 
-    #[cfg(feature = "global_alloc")]
     #[inline]
     fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
         unsafe {
-            let mut b = new_box::<T>(false).unwrap_or_else(|l| oom(l));
+            let mut b = new_box::<T>(false);
             ptr::write(b.as_mut(), f());
             b
         }
     }
 
-    #[cfg(not(feature = "global_alloc"))]
-    #[inline]
-    fn new_with<F: FnOnce() -> T>(f: F) -> Box<T> {
-        unsafe {
-            let mut v = Vec::<T>::with_capacity(1);
-            let raw: *mut T = v.as_mut_ptr();
-            mem::forget(v);
-            ptr::write(raw, f());
-            Box::from_raw(raw)
-        }
-    }
-
-    #[cfg(feature = "global_alloc")]
     #[inline]
     fn new_zeroed() -> Box<T>
     where
         T: Zero,
     {
-        unsafe { new_box(true).unwrap_or_else(|l| oom(l)) }
+        unsafe { new_box(true) }
     }
 
-    #[cfg(not(feature = "global_alloc"))]
-    #[inline]
-    fn new_zeroed() -> Box<T>
-    where
-        T: Zero,
-    {
-        macro_rules! new_zeroed {
-            ($t:ty, $align:expr, $size:expr) => {{
-                #[cfg(feature = "static_assertions")]
-                const_assert_eq!(mem::align_of::<$t>(), $align);
-                let mut v = vec![0 as $t; $size];
-                let raw: *mut $t = v.as_mut_ptr();
-                mem::forget(v);
-                Box::from_raw(raw as *mut T)
-            }};
-        }
-
-        unsafe {
-            let size = mem::size_of::<T>();
-            match mem::align_of::<T>() {
-                // vec! has an optimization that uses calloc when using
-                // vec![0; n], so use that when we can.
-                1 => new_zeroed!(u8, 1, size),
-                2 => new_zeroed!(u16, 2, (size + 1) / 2),
-                #[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
-                4 => new_zeroed!(u32, 4, (size + 3) / 4),
-                #[cfg(target_pointer_width = "64")]
-                8 => new_zeroed!(u64, 8, (size + 7) / 8),
-                _ => Box::new_with(|| mem::zeroed()),
-            }
-        }
-    }
-
-    #[cfg(feature = "global_alloc")]
     #[inline]
     fn try_new(x: T) -> Option<Self> {
         unsafe {
-            let mut b = new_box::<T>(false).ok()?;
+            let mut b = try_new_box::<T>(false).ok()?;
             ptr::write(b.as_mut(), x);
             Some(b)
         }
     }
 
-    #[cfg(feature = "global_alloc")]
     #[inline]
     fn try_new_with<F: FnOnce() -> Self::Inner>(f: F) -> Option<Self> {
         unsafe {
-            let mut b = new_box::<T>(false).ok()?;
+            let mut b = try_new_box::<T>(false).ok()?;
             ptr::write(b.as_mut(), f());
             Some(b)
         }
     }
 
-    #[cfg(feature = "global_alloc")]
     #[inline]
     fn try_new_zeroed() -> Option<Self>
     where
         Self::Inner: Zero,
     {
-        unsafe { new_box::<T>(true).ok() }
+        unsafe { try_new_box::<T>(true).ok() }
     }
 }
 

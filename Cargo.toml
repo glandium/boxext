@@ -13,7 +13,6 @@ default = ["std"]
 std = []
 
 [dependencies]
-static_assertions = "0.2"
 allocator_api = { version = "0.4", optional = true }
 
 [dev-dependencies]
