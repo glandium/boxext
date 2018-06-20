@@ -11,6 +11,9 @@ keywords = ["box", "allocator"]
 [features]
 default = ["std"]
 std = []
+# Below are dummy features for backwards compatibility. Remove when version bumps to 0.2.
+unstable-rust = []
+fallible = []
 
 [dependencies]
 allocator_api = { version = "0.5", optional = true, git = "https://github.com/glandium/allocator_api" }
