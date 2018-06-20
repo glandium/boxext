@@ -9,8 +9,8 @@ readme = "README.md"
 keywords = ["box", "allocator", "derive"]
 
 [dependencies]
-syn = ">= 0.12, <0.14"
-quote = ">=0.4, <0.6"
+syn = ">= 0.12, <0.15"
+quote = ">=0.4, <0.7"
 
 [lib]
 proc-macro = true
