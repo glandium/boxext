@@ -148,20 +148,14 @@ pub trait BoxExt {
     ///
     /// This doesn't actually allocate if `Self::Inner` is zero-sized.
     ///
-    /// When possible, this will get zeroed memory directly from the
+    /// This method will obtain zeroed memory directly from the underlying
     /// allocator, through the use of [`calloc`], [`HeapAlloc(...,
-    /// HEAP_ZERO_MEMORY, ...)`] or [`mallocx(..., MALLOCX_ZERO)`].
+    /// HEAP_ZERO_MEMORY, ...)`] or [`mallocx(..., MALLOCX_ZERO)`], whichever
+    /// is used as a global allocator by the rust compiler.
     ///
     /// [`calloc`]: http://pubs.opengroup.org/onlinepubs/009695399/functions/calloc.html
     /// [`HeapAlloc(..., HEAP_ZERO_MEMORY, ...)`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa366597(v=vs.85).aspx#HEAP_ZERO_MEMORY
     /// [`mallocx(..., MALLOCX_ZERO)`]: http://jemalloc.net/jemalloc.3.html#MALLOCX_ZERO
-    ///
-    /// Practically speaking, it will use those when the alignment for
-    /// `Self::Inner` is less the pointer size. Otherwise, this is
-    /// equivalent to `Box::new_with(|| std::mem::zeroed())`.
-    ///
-    /// When using rust >= 1.28, zeroed memory is unconditionally obtained
-    /// from the allocator.
     ///
     /// # Example
     ///
