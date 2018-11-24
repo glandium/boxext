@@ -61,19 +61,9 @@
 //! `allocator_api` crate.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(all(feature = "std", not(feature = "global_alloc")), feature(allocator_api))]
 
-#[cfg(all(feature = "std", feature = "global_alloc"))]
+#[cfg(feature = "std")]
 use std::alloc::{handle_alloc_error, alloc, alloc_zeroed, Layout};
-
-#[cfg(all(feature = "std", not(feature = "global_alloc")))]
-use std::heap::{Alloc, Layout};
-
-#[cfg(all(feature = "std", not(feature = "global_alloc"), not(feature = "global_alloc27")))]
-use std::heap::{AllocErr, Heap};
-
-#[cfg(all(feature = "std", feature = "global_alloc27"))]
-use std::heap::{oom, Global as Heap};
 
 #[cfg(feature = "allocator_api")]
 extern crate allocator_api;
@@ -292,7 +282,7 @@ pub trait BoxExt {
         Self::Inner: Zero;
 }
 
-#[cfg(all(feature = "std", feature = "global_alloc"))]
+#[cfg(feature = "std")]
 unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     let layout = Layout::new::<T>();
     let raw = if layout.size() == 0 {
@@ -309,51 +299,9 @@ unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
     }
 }
 
-#[cfg(all(feature = "std", feature = "global_alloc"))]
+#[cfg(feature = "std")]
 unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
     try_new_box::<T>(zeroed).unwrap_or_else(|l| handle_alloc_error(l))
-}
-
-#[cfg(all(feature = "std", feature = "global_alloc27"))]
-unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
-    let layout = Layout::new::<T>();
-    let raw = if layout.size() == 0 {
-        Ok(ptr::NonNull::<T>::dangling().cast())
-    } else if zeroed {
-        Heap.alloc_zeroed(layout).map(|p| p.cast())
-    } else {
-        Heap.alloc(layout).map(|p| p.cast())
-    };
-    match raw {
-        Ok(raw) => Ok(Box::from_raw(raw.as_ptr())),
-        Err(_) => Err(layout),
-    }
-}
-
-#[cfg(all(feature = "std", feature = "global_alloc27"))]
-unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
-    try_new_box::<T>(zeroed).unwrap_or_else(|_| oom())
-}
-
-#[cfg(all(feature = "std", not(feature = "global_alloc"), not(feature = "global_alloc27")))]
-unsafe fn try_new_box<T>(zeroed: bool) -> Result<Box<T>, Layout> {
-    let layout = Layout::new::<T>();
-    let raw = if layout.size() == 0 {
-        Ok(layout.align() as *mut u8)
-    } else if zeroed {
-        Heap.alloc_zeroed(layout.clone())
-    } else {
-        Heap.alloc(layout.clone())
-    };
-    match raw {
-        Ok(raw) => Ok(Box::from_raw(raw as *mut T)),
-        Err(_) => Err(layout),
-    }
-}
-
-#[cfg(all(feature = "std", not(feature = "global_alloc"), not(feature = "global_alloc27")))]
-unsafe fn new_box<T>(zeroed: bool) -> Box<T> {
-    try_new_box::<T>(zeroed).unwrap_or_else(|l| Heap.oom(AllocErr::Exhausted { request: l }))
 }
 
 #[cfg(feature = "std")]

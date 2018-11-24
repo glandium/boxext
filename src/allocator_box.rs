@@ -6,11 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![cfg_attr(not(feature = "nonnull_cast"), allow(unstable_name_collision))]
-
 use allocator_api::{Alloc, Box, Layout, handle_alloc_error};
-#[cfg(not(feature = "nonnull_cast"))]
-use allocator_api::NonNullCast;
 use core::ptr::{self, NonNull};
 use {BoxExt, Zero};
 
