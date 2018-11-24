@@ -16,7 +16,7 @@ unstable-rust = []
 fallible = []
 
 [dependencies]
-allocator_api = { version = "0.5", optional = true, default-features = false }
+allocator_api = { version = ">=0.5, <0.7", optional = true, default-features = false }
 
 [dev-dependencies]
 boxext_derive = { path = "boxext_derive", version = "0.1" }
