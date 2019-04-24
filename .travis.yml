@@ -10,7 +10,7 @@ matrix:
   - rust: nightly
 cache: cargo
 script:
-  - ${ALLOCATOR_API:+cargo update -p allocator_api --precise $ALLOCATOR_API}
+  - ${ALLOCATOR_API:+cargo update; cargo update -p allocator_api --precise $ALLOCATOR_API}
   - cargo test --verbose
   - cargo test --verbose --features allocator_api
   - cargo test --verbose --features allocator_api --no-default-features
