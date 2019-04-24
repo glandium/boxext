@@ -3,11 +3,14 @@ language: rust
 matrix:
   include:
   - rust: 1.28.0
+    env: ALLOCATOR_API=0.5.0
+  - rust: 1.33.0
   - rust: stable
   - rust: beta
   - rust: nightly
 cache: cargo
 script:
+  - ${ALLOCATOR_API:+cargo update -p allocator_api --precise $ALLOCATOR_API}
   - cargo test --verbose
   - cargo test --verbose --features allocator_api
   - cargo test --verbose --features allocator_api --no-default-features
